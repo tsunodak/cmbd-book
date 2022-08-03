@@ -91,21 +91,21 @@ for (idxGroup in 1:nGroup){
   # データフレームを縦に連結していく
   dfparam <- rbind(dfparam, dftmp)
   
-  # 7/29 From Here L.88 at generate_data_fqlearning_single_subject.Rmd
+  # From Here 7/29
+  # L.88 at "generate_data_fqlearning_single_subject.Rmd"
   for (idxSub in 1:nSub){
-    
+    # 変数の初期化
+    Q < matrix(numeric(2))
   }  # 
 }
 beta
+```
+
+```{r}
 
 
 pmin(c(20, 10, 4, 0),10.0) # 配列の最大値を10にしてしまう 32とかあったら10に置換
 pmax(c(20, 10, 4, 0),10.0) # 配列の最小値を10にしてしまう
-
-
-```
-
-```{r}
 beta.mean
 beta.sigma
 alphaL

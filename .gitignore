@@ -4,6 +4,5 @@
 .Ruserdata
 *.Rproj
 *.rds
-*.csv
 _site.yml
 docs/
