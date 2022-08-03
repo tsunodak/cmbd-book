@@ -1,0 +1,230 @@
+https://github.com/tsunodak/cmbd-book/blob/master/chapter4/qlearning_groupdata.R#L44
+が参考になる
+qlearning_groupdata.Rを参考にする
+
+```{r}
+# ----------------------------------------------------- #
+# Q学習モデルのシミュレーションにより選択データを生成し，
+# そのデータから最尤推定をする。
+# ----------------------------------------------------- #
+
+# メモリ，グラフのクリア
+rm(list=ls())
+graphics.off()
+
+# 描画のためのライブラリ読み込み
+library(tidyverse)
+library(gridExtra)
+library(plotly)
+# library(rgl)
+# library(scatterplot3d)
+
+# 乱数のシードの設定 
+set.seed(141)
+```
+
+```{r}
+func_simu_qlearn <- function(T, alpha, beta, pr)
+{
+  # Q 値の初期化( 選択肢の数x T)
+  Q <- matrix(numeric(2 * T), nrow = 2, ncol = T)
+  
+  c <- numeric(T)   # choice
+  r <- numeric(T)   # reward
+  pA <- numeric(T)  # choice probability
+  
+  
+  
+  for (t in 1:T) {
+    # ソフトマックスで選択肢A の選択確率を決定する
+    pA[t] <- 1 / (1 + exp(-beta * (Q[1, t] - Q[2, t])))
+    
+    if (runif(1, 0, 1) < pA[t]) {
+      # 0~1の実数の生成　runif
+      # 引数 n は試行の回数、min は出力する乱数の最小値、max は出力する乱数の最大値である。
+      
+      # Aを選択
+      c[t] <- 1
+      r[t] <- as.numeric(runif(1, 0, 1) < pr[1]) # e.g.: 0.434 < 0.7の場合
+      # as.numericで0 or 1にする
+    } else {
+      # Bを選択
+      c[t] <- 2
+      r[t] <- as.numeric(runif(1, 0, 1) < pr[2]) # e.g.: 0.434 < 0.3の場合
+    }
+    
+    # 行動価値の更新
+    if (t < T) {
+      Q[c[t], t + 1] <- Q[c[t], t] + alpha * (r[t] - Q[c[t], t])
+      
+      # 選択肢していない行動の価値はそのままの値を次の時刻に引き継ぐ。
+      # 3-c でc=1 なら2, c=2 なら1, というように
+      # 逆側の選択肢のインデックスが求まる。
+      Q[3 - c[t], t + 1] <- Q[3 - c[t], t]
+      
+      # Qの構造
+      # 1行目　Aの選択価値
+      # 2行目　Bの選択価値
+    }
+  }
+  
+  NumA <- sum(c == 1)
+  PercentA <- sum(c == 1) / T * 100
+#  return(PercentA)
+  return(list(Choice = c,Reward = r, ProbA = PercentA))
+}
+
+```
+1人分のデータのシミュレーション
+```{r}
+T     <- 200     # 試行数
+alpha <- 0.3     # 学習率
+beta  <- 2.0      # 逆温度
+pr    <- c(0.7, 0.3) # それぞれの選択肢の報酬確率
+Val   <- func_simu_qlearn(T, alpha, beta, pr)
+
+print(Val)
+print(sprintf("Percent of A choices: %.2f %%", Val$ProbA))
+```
+複数人分のシミュレーションデータの生成
+```{r}
+# Initial values of subjects
+T                     <- 200  # Numer of trials
+N                     <- 30   # Number of subjects
+initparam_alpha_all <- rnorm(N, mean=0.5, sd=0.1)
+initparam_beta_all <- rnorm(N, mean=4,    sd=1)
+initparam_alpha_all[initparam_alpha_all < 0.01] <- 0.01 # rnormだと0~1に収まらない値が生成される可能性あ
+initparam_alpha_all[initparam_alpha_all > 0.99] <- 0.99
+initparam_beta_all[initparam_beta_all   < 0.0]  <- 0.01
+pr                    <- c(0.7, 0.3) # それぞれの選択肢の報酬確率
+Rep                   <- 1
+
+# Make simulation data
+
+AllSub_choice <- matrix(, nrow = 0, ncol = T)
+AllSub_reward <- matrix(, nrow = 0, ncol = T)
+
+Ind_pA_all    <- as.numeric(length(initparam_alpha_all) * length(initparam_beta_all))
+pA_all        <- numeric(Ind_pA_all)
+sim_alpha_all <- numeric(length(initparam_alpha_all)*Rep) 
+sim_beta_all  <- numeric(length(initparam_alpha_all)*Rep) 
+sim_pA_all    <- numeric(length(initparam_alpha_all)*Rep) 
+iRepLoop <- 1
+for (iN in 1:N) {
+  alpha_tmp  <- initparam_alpha_all[iN]
+    beta_tmp <- initparam_beta_all[iN]
+      Val    <- func_simu_qlearn(T, alpha_tmp, beta_tmp, pr)
+      AllSub_choice <- rbind(AllSub_choice, Val$Choice)
+      AllSub_reward <- rbind(AllSub_reward, Val$Reward)
+      
+      sim_alpha_all[iRepLoop] <- alpha_tmp
+      sim_beta_all[iRepLoop]  <- beta_tmp
+      sim_pA_all[iRepLoop]    <- as.numeric(Val$ProbA)
+        
+      iRepLoop <- iRepLoop + 1
+}
+
+# 各組合せ条件を１つのラベルとなるように新たなラベルを作成　100条件
+Char_alpha <- as.character(sim_alpha_all)
+Char_beta  <- as.character(sim_beta_all)
+Char_param <- paste(Char_alpha , Char_beta , sep = "_") # 
+# make dataframe
+Data_sim   <- data.frame(sim_alpha_all, sim_beta_all, sim_pA_all, Char_param)
+```
+simulation dataの描画
+```{r}
+summary(Data_sim)
+# plot
+hist(initparam_alpha_all)
+hist(initparam_beta_all)
+ggplot(Data_sim) +  geom_point(aes(x = sim_alpha_all, y= sim_pA_all, color = sim_beta_all))
+plot_ly(x=~Data_sim$sim_alpha_all, y=~Data_sim$sim_beta_all, z=~Data_sim$sim_pA_all, color = sim_beta_all) # 3d plot
+# z=~　チルダをつけることで変数名を表示してくれる
+# Fig + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+階層効果モデル
+やること
+まず固定効果分析を行う 実装してみる
+最尤推定を行う　qlearning_model_comparison_md.Rmdを参考にする
+半分答え~/cmbd-book-master/chapter4/qlearning_groupdata.RのL.259が半分答えになる💦
+
+```{r}
+# A <- matrix(, nrow = 0, ncol = 200)
+# str(A)
+# str(AllSub_choice)
+# rbind(AllSub_choice, Val$Choice)
+# str(A)
+```
+
+```{r}
+# 最尤推定，MAP推定，最適化のためRsolnpを読み込み
+library(Rsolnp)
+# 固定効果のQ学習モデル
+func_qlearning_FE <- function(param, choice, reward)
+{
+
+  N <- dim(choice)[1]    # 参加者数
+  T <- dim(choice)[2]    # 一参加あたりの試行数
+  alpha <- param[1]
+  beta <- param[2]
+  c <- choice
+  r <- reward
+  
+  # initialize log-likelihood
+  ll <- 0
+  
+  for (idxsub in 1:N) {
+    Q <- matrix(numeric(2*T), nrow=2, ncol=T)
+    pA <- numeric(T) 
+    
+    for (t in 1:T) {
+      
+      pA[t] <- 1/(1+exp(-beta * (Q[1,t]-Q[2,t])))
+      
+      ll <- ll + (c[idxsub, t]==1) * log(pA[t]) +  (c[idxsub, t]==2) * log(1-pA[t])
+      
+      if (t < T) {
+        
+        Q[c[idxsub, t],t+1] <- Q[c[idxsub, t],t] + alpha * (r[idxsub, t] - Q[c[idxsub, t],t] ) 
+        
+        Q[3-c[idxsub, t],t+1] <- Q[3-c[idxsub, t],t]
+      }
+    }
+  }
+  return(-ll)
+}
+
+```
+
+```{r}
+# 固定効果 ML-------------------------------------------------------------
+nParam = 2 # alpha, beta
+fval <- Inf
+for (idxopt in 1:10) {
+  initparam <- runif(nParam, 0, 1.0) # nParam = 2;  0~1の数が2個出てくる。alphaとβの初期値
+  
+  res <- solnp(
+    initparam,
+    fun = func_qlearning_FE,
+    LB = c(0, 0), 
+    UB = c(1, 20),
+    control = list(trace = 0), #  https://www.rdocumentation.org/packages/Rsolnp/versions/1.16/topics/solnp
+    choice = AllSub_choice,
+    reward = AllSub_reward
+  )
+  # solnpであれば，LB, UBというオプションで指定できます。 LB UB
+  # パラメータが学習率と逆温度の二つであり，それぞれ値の範囲を[0,1], [0,20]に制限したければ， 以下のようにします。
+  
+  if (fval > res$values[length(res$values)]) {
+    fval <- res$values[length(res$values)]
+    paramest <- res$pars
+  }
+  
+  FE_param <- list(paramest[1], paramest[2])
+}
+```
+
+```{r}
+print("Estimated Fixed-effect parameter alpha and Beta")
+FE_param
+```

@@ -1,0 +1,53 @@
+```{r}
+softmax <- function (X, Beta) {
+  1/(1 + exp(-Beta*X))
+}
+a <-1
+print(a)
+
+```
+```{r}
+Text <- "Beta and Softmax function"
+print(Text)
+X    <- seq(-10, 10, by = 0.1)
+Beta <- 0.1
+Y    <- softmax(X, Beta)
+plot(X,Y)
+title(Beta)
+
+Beta <- 0.5
+Y    <- softmax(X, Beta)
+plot(X,Y)
+title(Beta)
+
+Beta <- 1
+Y    <- softmax(X, Beta)
+plot(X,Y)
+title(Beta)
+
+Beta <- 2
+Y    <- softmax(X, Beta)
+# par(new =T)
+plot(X,Y)
+title(Beta)
+
+Beta <- 3
+Y    <- softmax(X, Beta)
+# par(new =T)
+plot(X,Y)
+title(Beta)
+
+Beta <- 4
+Y    <- softmax(X, Beta)
+# par(new =T)
+plot(X,Y)
+title(Beta)
+
+
+Beta <- 10
+Y    <- softmax(X, Beta)
+# par(new =T)
+plot(X,Y)
+title(Beta)
+
+```

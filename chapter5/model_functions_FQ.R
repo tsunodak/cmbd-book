@@ -1,5 +1,5 @@
 #----------------------------------------------------------#
-# Model functions (for parameter fit)
+# Model functions (for parameter fit)    
 #----------------------------------------------------------#
 
 # standard Q-learning

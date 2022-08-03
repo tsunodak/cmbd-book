@@ -1,0 +1,145 @@
+# やること
+# 1. length(initparam_alpha_all)*length(initparam_beta_all)*Repのサイズの空配列を作る
+#     alpha_tmp, beta_tmp, Valを保存する
+# 2. table配列的なものに変換することで、summarizeできるようにする
+# 3. グラフを書く
+
+関数を作る：できた
+Alpha Beta をグリッドサーチする
+1条件　10回データ計測
+計100条件
+
+```{r}
+# ----------------------------------------------------- #
+# Q学習モデルのシミュレーションにより選択データを生成し，
+# そのデータから最尤推定をする。
+# ----------------------------------------------------- #
+
+# メモリ，グラフのクリア
+rm(list=ls())
+graphics.off()
+
+# 描画のためのライブラリ読み込み
+library(tidyverse)
+library(gridExtra)
+library(ggplot2)
+
+# 乱数のシードの設定 
+set.seed(141)
+```
+
+```{r}
+func_simu_qlearn <- function(T, alpha, beta, pr)
+{
+  # Q 値の初期化( 選択肢の数x T)
+  Q <- matrix(numeric(2 * T), nrow = 2, ncol = T)
+  
+  c <- numeric(T)   # choice
+  r <- numeric(T)   # reward
+  pA <- numeric(T)  # choice probability
+  
+  
+  
+  for (t in 1:T) {
+    # ソフトマックスで選択肢A の選択確率を決定する
+    pA[t] <- 1 / (1 + exp(-beta * (Q[1, t] - Q[2, t])))
+    
+    if (runif(1, 0, 1) < pA[t]) {
+      # 0~1の実数の生成　runif
+      # 引数 n は試行の回数、min は出力する乱数の最小値、max は出力する乱数の最大値である。
+      
+      # Aを選択
+      c[t] <- 1
+      r[t] <- as.numeric(runif(1, 0, 1) < pr[1]) # e.g.: 0.434 < 0.7の場合
+      # as.numericで0 or 1にする
+    } else {
+      # Bを選択
+      c[t] <- 2
+      r[t] <- as.numeric(runif(1, 0, 1) < pr[2]) # e.g.: 0.434 < 0.3の場合
+    }
+    
+    # 行動価値の更新
+    if (t < T) {
+      Q[c[t], t + 1] <- Q[c[t], t] + alpha * (r[t] - Q[c[t], t])
+      
+      # 選択肢していない行動の価値はそのままの値を次の時刻に引き継ぐ。
+      # 3-c でc=1 なら2, c=2 なら1, というように
+      # 逆側の選択肢のインデックスが求まる。
+      Q[3 - c[t], t + 1] <- Q[3 - c[t], t]
+      
+      # Qの構造
+      # 1行目　Aの選択価値
+      # 2行目　Bの選択価値
+    }
+  }
+  
+  NumA <- sum(c == 1)
+  PercentA <- sum(c == 1) / T * 100
+  return(PercentA)
+}
+
+```
+
+```{r}
+T     <- 200         # 試行数
+alpha <- 0.3     # 学習率
+beta  <- 2.0      # 逆温度
+pr    <- c(0.7, 0.3) # それぞれの選択肢の報酬確率
+Val   <- func_simu_qlearn(T, alpha, beta, pr)
+
+print(Val)
+print(sprintf("Percent of A choices: %.2f %%", Val))
+```
+
+```{r}
+initparam_alpha_all   <- seq(0.1, 1, by = 0.1) # 
+initparam_beta_all    <- 1:10 # 
+T           <- 200         # 試行数
+pr          <- c(0.7, 0.3) # それぞれの選択肢の報酬確率
+Rep         <- 10
+as.numeric(length(initparam_alpha_all) * length(initparam_beta_all))
+```
+
+```{r}
+Ind_pA_all    <- as.numeric(length(initparam_alpha_all) * length(initparam_beta_all))
+pA_all        <- numeric(Ind_pA_all)
+sim_alpha_all <- numeric(length(initparam_alpha_all)*length(initparam_beta_all)*Rep) 
+sim_beta_all  <- numeric(length(initparam_alpha_all)*length(initparam_beta_all)*Rep) 
+sim_pA_all    <- numeric(length(initparam_alpha_all)*length(initparam_beta_all)*Rep) 
+
+iRepLoop <- 1
+for (iAlpha in 1:as.numeric(length(initparam_alpha_all))) {
+  alpha_tmp  <- initparam_alpha_all[iAlpha]
+  for (iBeta in 1:as.numeric(length(initparam_beta_all))) {
+    beta_tmp <- initparam_beta_all[iBeta]
+    for (iRep in 1:Rep){
+      Val    <- func_simu_qlearn(T, alpha_tmp, beta_tmp, pr)
+      
+      sim_alpha_all[iRepLoop] <- alpha_tmp
+      sim_beta_all[iRepLoop]  <- beta_tmp
+      sim_pA_all[iRepLoop]    <- Val
+        
+      iRepLoop <- iRepLoop + 1
+      # やること
+      # 1. length(initparam_alpha_all)*length(initparam_beta_all)*Repのサイズの空配列を作る
+      #     alpha_tmp, beta_tmp, Valを保存する
+      # 2. table配列的なものに変換することで、summarizeできるようにする
+      # 3. グラフを書く
+    }
+  }
+}
+
+```
+
+```{r}
+Char_alpha <- as.character(sim_alpha_all)
+Char_beta  <- as.character(sim_beta_all)
+Char_param <- paste(Char_alpha , Char_beta , sep = "_") # 各組合せ条件を１つのラベルとなるように新たなラベルを作成　100条件
+
+Data_sim   <- data.frame(sim_alpha_all, sim_beta_all, sim_pA_all, Char_param)
+
+summary(Data_sim)
+ggplot(Data_sim) +  geom_point(aes(x = sim_alpha_all, y= sim_pA_all, color = sim_beta_all))
+Fig <- ggplot(Data_sim) +  geom_point(aes(x = Char_param, y= sim_pA_all, color = sim_beta_all))
+Fig + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```

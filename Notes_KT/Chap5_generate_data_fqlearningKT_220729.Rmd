@@ -1,0 +1,113 @@
+---
+title: "Untitled"
+output: pdf_document
+date: "2022-07-25"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+rm(list=ls())
+
+simulation_ID <- "FQlearning_singlesubject"
+csv_simulation_data <- paste0("./data/simulation_data", simulation_ID,".csv")
+csv_param <- paste0("./data/")
+
+nSub <- 1       # number of subjects
+T    <- 200     # trials in a subject
+
+# 集団レベル分布の平均 (グループが複数ある場合はベクトルとして並べる。例: c(0.2, 0.4))
+alphaL.mean <- 0.4          # learning rate  
+beta.mean   <- 2.0          # Inv. temp.
+# alphaL.mean <- c(0.2, 0.4)  # learning rate  
+# beta.mean   <- c(2.0, 4.0)  # Inv. temp.
+
+
+#　報酬確立の系列を決定
+pr <-list()
+interval <- 50 # 同じ報酬確率が続く試行数
+padv <- 0.7    # 良い選択肢の報酬確率
+pr[[1]] <-rep(rep(c(padv, 1-padv), T/interval/2), each=interval)
+# 50回ずつ0.7, 0.3を繰り返す配列
+# [0.7 0.3 0.7 0.3]をつくってから、それぞれを50回繰り返している
+
+pr[[2]] <-rep(rep(c(1-padv, padv), T/interval/2), each=interval) 
+
+# pr[[1]]
+str(    rep(c(padv, 1-padv), T/interval/2))
+str(rep(rep(c(padv, 1-padv), T/interval/2), each=interval))
+
+
+```
+
+```{r}
+# 乱数のSEEDを設定
+set.seed(1)
+
+# グループ数を求める（nGroup = 1）
+nGroup <- length(alphaL.mean)
+
+# 集団レベル分布の標準偏差
+alphaL.sigma <- rep(0, nGroup) # 学習率 今は0になっている　Single subjectだからか
+beta.sigma   <- rep(0, nGroup) # 逆温度
+
+```
+
+# シミュレーションの実行
+```{r Run simulation}
+dfparam <- data.frame() # パラメータの真値を格納するデータフレーム
+# 選択などのデータを格納するデータフレーム
+df_simulation_data <- data.frame()
+
+for (idxGroup in 1:nGroup){
+  # for each group
+  cat("Generating data for group", idxGroup, "...\n")
+  
+  # Set the true value of  LearningRate
+  alphaL <- rnorm(n=nSub, mean = alphaL.mean[idxGroup], sd = alphaL.sigma[idxGroup])
+  # str(alphaL)
+  
+  # この手順よくわかってない
+  alphaL <- pmax(pmin(alphaL,1.0),0.01) # 0.01以上1.0以下に収める
+  alphaF <- numeric(nSub)               # nSub列の空配列を作る
+
+  alphaF <- alphaL # F-Q learning model
+  # alphaF <- 0 # Q-learning model
+
+  # inverted temperature 
+  beta <- rnorm(n = nSub, mean = beta.mean[idxGroup],
+                sd = beta.sigma[idxGroup])
+  beta <- pmax(pmin(beta,10.0),0.01) # 0.01 以上10以下に抑える
+
+  # パラメータの真値を記録
+  dftmp <- data.frame(group   = as.factor(idxGroup),
+                      subject = as.factor(1:nSub),
+                      alphaL  = alphaL,
+                      alphaF  = alphaF,
+                      beta    = beta)
+  
+  # データフレームを縦に連結していく
+  dfparam <- rbind(dfparam, dftmp)
+  
+  # 7/29 From Here L.88 at generate_data_fqlearning_single_subject.Rmd
+  for (idxSub in 1:nSub){
+    
+  }  # 
+}
+beta
+
+
+pmin(c(20, 10, 4, 0),10.0) # 配列の最大値を10にしてしまう 32とかあったら10に置換
+pmax(c(20, 10, 4, 0),10.0) # 配列の最小値を10にしてしまう
+
+
+```
+
+```{r}
+beta.mean
+beta.sigma
+alphaL
+
+```
